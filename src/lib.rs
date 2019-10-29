@@ -1,39 +1,35 @@
 mod parse;
 
-struct SDKLibrary {
-    lib_filename: String,
-    archive_filename: String,
-    ghidra_binary_filename: String,
-    ghidra_base: u32,
-    functions: Vec<AsmFunction>,
-}
-
-struct SMB2Rel {
-    ghidra_base: u32,
-    functions: Vec<AsmFunction>,
-}
-
-struct AsmFunction {
-    name: String,
-    ghidra_addr: u32,
-    len: u32,
-    code: Vec<u32>,
-}
-
 /*
 TODO:
- * Walk directories for XML / memory map files
  * Parse library, rel, and function structs
  * Match functions between libraries and rel
+ * More consistent naming
 */
+
+#[derive(Debug)]
+pub struct AsmFunction {
+    // Metadata
+    // Could be shared between certain functions, but cannot return metadata and functions in same
+    // struct. Need either reference counting, or to compute metadata separately from functions.
+    // Also, it's more ergonomic to associate the metadata with the functions
+    pub lib_filename: String,
+    pub namespace: String,
+    pub ghidra_base: u32,
+
+    pub name: String,
+    pub ghidra_addr: u32,
+    pub len: u32,
+    pub code: Vec<u32>,
+}
 
 // Similar to the way the ripgrep frontend handles errors
 // Maybe better way to do this in the future?
 // Reading rust book chapter on Box stuff might help
 // Also the `failure` crate
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 pub fn run() -> Result<()> {
-    parse::parse();
+    let sdk_funcs = parse::parse_sdk_libs()?;
     Ok(())
 }
