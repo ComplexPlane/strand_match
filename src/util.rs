@@ -1,4 +1,9 @@
+use std::fs::File;
+
+use byteorder::{ByteOrder, BigEndian};
+
 use crate::Result;
+use crate::AsmFunction;
 
 pub fn parse_u32_hex(s: &str) -> Result<u32> {
     let s = if s.len() >= 2 && &s[0..2].to_lowercase() == "0x" {
@@ -10,14 +15,20 @@ pub fn parse_u32_hex(s: &str) -> Result<u32> {
     Ok(u32::from_str_radix(s, 16)?)
 }
 
+pub fn export_function(func: &AsmFunction) {
+    let file = File::create("export_test").unwrap();
+    let buf = vec![0; ]
+    let func_bytes = BigEndian::write_u32_into(&func.code, buf);
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
 
     #[test]
     fn hexstring() {
-        assert_eq!(parse_u32_hex("0x52ac0").unwrap(), 338624);
-        assert_eq!(parse_u32_hex("0X52ac0").unwrap(), 338624);
-        assert_eq!(parse_u32_hex("42").unwrap(), 66);
+        assert_eq!(parse_u32_hex("0x52ac0"), Some(338624));
+        assert_eq!(parse_u32_hex("0X52ac0"), Some(338624));
+        assert_eq!(parse_u32_hex("42"), Some(66));
     }
 }
