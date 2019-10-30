@@ -1,5 +1,7 @@
 mod parse;
 
+type Result<T> = std::result::Result<T, failure::Error>;
+
 #[derive(Debug)]
 pub struct AsmFunction {
     // Metadata
@@ -16,14 +18,8 @@ pub struct AsmFunction {
     pub code: Vec<u32>,
 }
 
-// Similar to the way the ripgrep frontend handles errors
-// Maybe better way to do this in the future?
-// Reading rust book chapter on Box stuff might help
-// Also the `failure` crate
-pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-
 pub fn run() -> Result<()> {
-    let sdk_funcs = parse::parse_sdk_libs()?;
+//    let sdk_funcs = parse::parse_sdk_libs()?;
     let rel_funcs = parse::parse_rel()?;
 
     Ok(())

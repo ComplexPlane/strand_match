@@ -3,6 +3,7 @@ use std::fs::File;
 use std::path::Path;
 use std::io::{BufReader, Seek, SeekFrom};
 
+use failure::format_err;
 use hex;
 use roxmltree::{Document, Node};
 use regex::Regex;
@@ -44,9 +45,9 @@ fn parse_library_or_rel(path: &Path, funcs: &mut Vec<AsmFunction>) -> Result<()>
     let root = xml_tree.root_element();
 
     let lib_name = root.attribute("NAME")
-    .ok_or("Failed to get program name attribute")?;
+    .ok_or(format_err!("Failed to get program name attribute"))?;
     let base = root.attribute("IMAGE_BASE")
-    .ok_or("Failed to get image base attribute")?;
+    .ok_or(format_err!("Failed to get image base attribute"))?;
     let base = parse_u32_hex(base)?;
     let namespace = parse_namespace(&root)?;
 
@@ -63,7 +64,7 @@ fn parse_library_or_rel(path: &Path, funcs: &mut Vec<AsmFunction>) -> Result<()>
 fn parse_namespace<'a>(root: &'a Node) -> Result<&'a str> {
     let properties_node = root.children()
         .find(|c| c.has_tag_name("PROPERTIES"))
-        .ok_or("Failed to find PROPERTIES node")?;
+        .ok_or(format_err!("Failed to find PROPERTIES node"))?;
 
     let fsrl_property = properties_node.children()
         .find(|c| {
@@ -71,10 +72,10 @@ fn parse_namespace<'a>(root: &'a Node) -> Result<&'a str> {
                 Some(val) => val == "Program Information.FSRL",
                 None => false,
             }
-        }).ok_or("Failed to find FSRL property")?;
+        }).ok_or(format_err!("Failed to find FSRL property"))?;
 
     let fsrl_val = fsrl_property.attribute("VALUE")
-        .ok_or("Failed to get FSRL value")?;
+        .ok_or(format_err!("Failed to get FSRL value"))?;
 
     lazy_static!{
         static ref NAMESPACE_RE: Regex = Regex::new(r"/([\w\.]+)\.((rel)|a)").unwrap();
@@ -83,7 +84,7 @@ fn parse_namespace<'a>(root: &'a Node) -> Result<&'a str> {
     match NAMESPACE_RE.captures(fsrl_val) {
         Some(caps) => Ok(caps.get(1).unwrap().as_str()),
         // TODO: why do I need to use .into() here but not with .ok_or()?
-        None => Err("Failed to parse namespace".into()),
+        None => Err(format_err!("Failed to parse namespace")),
     }
 }
 
@@ -111,7 +112,7 @@ fn parse_funcs(
 
     let func_list_elem = xml_root.children()
         .find(|c| c.has_tag_name("FUNCTIONS"))
-        .ok_or("Couldn't find FUNCTIONS element")?;
+        .ok_or(format_err!("Couldn't find FUNCTIONS element"))?;
 
     for func_elem in func_list_elem.children() {
         if !func_elem.has_tag_name("FUNCTION") {
@@ -120,17 +121,15 @@ fn parse_funcs(
         }
 
         let name = func_elem.attribute("NAME")
-            .ok_or("Failed to get function name")?;
+            .ok_or(format_err!("Failed to get function name"))?;
 
         let addr_range = func_elem.children()
             .find(|c| c.has_tag_name("ADDRESS_RANGE"))
-            .ok_or("Failed to get function address range")?;
+            .ok_or(format_err!("Failed to get function address range"))?;
         let start = addr_range.attribute("START")
-            .ok_or("Failed to get function address range start")?;
+            .ok_or(format_err!("Failed to get function address range start"))?;
         let end = addr_range.attribute("END")
-            .ok_or("Failed to get function address range start")?;
-
-        println!("start hex: {}, end hex: {}", start, end);
+            .ok_or(format_err!("Failed to get function address range start"))?;
 
         let start = parse_u32_hex(start)?;
         let end = parse_u32_hex(end)?; // Location of last byte, inclusive
@@ -143,11 +142,8 @@ fn parse_funcs(
         // Read function's code
         let func_len = end - start + 1;
         let mut code = vec![0; (func_len / 4) as usize];
-        println!("seeking {}", start - ghidra_base);
         f.seek(SeekFrom::Start((start - ghidra_base) as u64))?;
-        println!("reading {}", func_len);
         f.read_u32_into::<BigEndian>(&mut code)?;
-        println!("done reading");
 
         funcs.push(AsmFunction {
             lib_filename: String::from(lib_filename),
@@ -164,16 +160,16 @@ fn parse_funcs(
     Ok(())
 }
 
-fn parse_memory_map(root: Node) -> Result<MemoryMap> {
-    let memory_map_elem = root.children()
-        .find(|c| c.has_tag_name("MEMORY_MAP"))
-        .ok_or("Could not find MEMORY_MAP element")?;
-
-    for section_elem in memory_map_elem.children() {
-        if !section_elem.has_tag_name("MEMORY_SECTION") {
-            continue;
-        }
-    }
-
-    Ok(())
-}
+//fn parse_memory_map(root: Node) -> Result<MemoryMap> {
+//    let memory_map_elem = root.children()
+//        .find(|c| c.has_tag_name("MEMORY_MAP"))
+//        .ok_or("Could not find MEMORY_MAP element")?;
+//
+//    for section_elem in memory_map_elem.children() {
+//        if !section_elem.has_tag_name("MEMORY_SECTION") {
+//            continue;
+//        }
+//    }
+//
+//    Ok(())
+//}
