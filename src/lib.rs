@@ -24,7 +24,14 @@ pub fn run() -> Result<()> {
     let sdk_funcs = parse::parse_sdk_libs()?;
     let rel_funcs = parse::parse_rel()?;
 
-//    println!("{:#?}", rel_funcs);
+    let sdk_idx = 2573;
+    let rel_idx = 6320;
+
+    println!("sdk function {}:\n{:#?}", sdk_idx, sdk_funcs[sdk_idx]);
+    println!("rel function {}:\n{:#?}", rel_idx, rel_funcs[rel_idx]);
+
+    util::export_function(&rel_funcs[rel_idx]);
+    util::export_function(&sdk_funcs[sdk_idx]);
 
     Ok(())
 }

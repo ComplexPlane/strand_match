@@ -1,6 +1,6 @@
 use std::fs::File;
 
-use byteorder::{ByteOrder, BigEndian};
+use byteorder::{WriteBytesExt, BigEndian};
 
 use crate::Result;
 use crate::AsmFunction;
@@ -16,9 +16,10 @@ pub fn parse_u32_hex(s: &str) -> Result<u32> {
 }
 
 pub fn export_function(func: &AsmFunction) {
-    let file = File::create("export_test").unwrap();
-    let buf = vec![0; ]
-    let func_bytes = BigEndian::write_u32_into(&func.code, buf);
+    let mut file = File::create(format!("{}.bin", func.name)).unwrap();
+    for instr in &func.code {
+        file.write_u32::<BigEndian>(*instr).unwrap();
+    }
 }
 
 #[cfg(test)]
