@@ -1,12 +1,5 @@
 mod parse;
 
-/*
-TODO:
- * Parse library, rel, and function structs
- * Match functions between libraries and rel
- * More consistent naming
-*/
-
 #[derive(Debug)]
 pub struct AsmFunction {
     // Metadata
@@ -31,5 +24,7 @@ pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 pub fn run() -> Result<()> {
     let sdk_funcs = parse::parse_sdk_libs()?;
+    let rel_funcs = parse::parse_rel()?;
+
     Ok(())
 }
