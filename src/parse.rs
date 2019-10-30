@@ -3,19 +3,17 @@ use std::fs::File;
 use std::path::Path;
 use std::io::{BufReader, Seek, SeekFrom};
 
-use failure::format_err;
-use hex;
+use failure::{format_err, bail};
 use roxmltree::{Document, Node};
 use regex::Regex;
 use byteorder::{ReadBytesExt, BigEndian};
 use lazy_static::lazy_static;
 
-use crate::{Result, AsmFunction};
+mod memmap;
 
-struct MemoryMap {
-    pub ghidra_addrs: Vec<u32>,
-    pub file_offsets: Vec<u32>,
-}
+use crate::{Result, AsmFunction};
+use crate::util;
+use memmap::MemoryMap;
 
 pub fn parse_sdk_libs() -> Result<Vec<AsmFunction>> {
     let mut funcs = Vec::new();
@@ -45,10 +43,7 @@ fn parse_library_or_rel(path: &Path, funcs: &mut Vec<AsmFunction>) -> Result<()>
     let root = xml_tree.root_element();
 
     let lib_name = root.attribute("NAME")
-    .ok_or(format_err!("Failed to get program name attribute"))?;
-    let base = root.attribute("IMAGE_BASE")
-    .ok_or(format_err!("Failed to get image base attribute"))?;
-    let base = parse_u32_hex(base)?;
+        .ok_or(format_err!("Failed to get program name attribute"))?;
     let namespace = parse_namespace(&root)?;
 
     parse_funcs(
@@ -56,7 +51,6 @@ fn parse_library_or_rel(path: &Path, funcs: &mut Vec<AsmFunction>) -> Result<()>
         root,
         lib_name,
         namespace,
-        base,
         funcs,
     )
 }
@@ -83,18 +77,8 @@ fn parse_namespace<'a>(root: &'a Node) -> Result<&'a str> {
 
     match NAMESPACE_RE.captures(fsrl_val) {
         Some(caps) => Ok(caps.get(1).unwrap().as_str()),
-        // TODO: why do I need to use .into() here but not with .ok_or()?
-        None => Err(format_err!("Failed to parse namespace")),
+        None => bail!("Failed to parse namespace"),
     }
-}
-
-fn parse_u32_hex(s: &str) -> Result<u32> {
-    Ok(hex::decode(s)?.into_iter()
-        .enumerate()
-        .fold(0u32, |acc, (i, b)| {
-            acc | (b as u32) << ((3 - i) as u32 * 8)
-        })
-    )
 }
 
 fn parse_funcs(
@@ -103,9 +87,10 @@ fn parse_funcs(
 
     lib_filename: &str,
     namespace: &str,
-    ghidra_base: u32,
 
     funcs: &mut Vec<AsmFunction>) -> Result<()> {
+
+    let memory_map = MemoryMap::parse(xml_root)?;
 
     let f = File::open(binary_path)?;
     let mut f = BufReader::new(f);
@@ -131,24 +116,27 @@ fn parse_funcs(
         let end = addr_range.attribute("END")
             .ok_or(format_err!("Failed to get function address range start"))?;
 
-        let start = parse_u32_hex(start)?;
-        let end = parse_u32_hex(end)?; // Location of last byte, inclusive
+        let start = util::parse_u32_hex(start)?;
+        let end = util::parse_u32_hex(end)?; // Location of last byte, inclusive
 
         if start == end {
             // Thunk function, ignore
             continue;
         }
 
+        // Compute file offset of function
+        let seg = memory_map.find_segment_idx(start)?;
+        let func_file_pos = start - memory_map.ghidra_addrs[seg] + memory_map.file_offsets[seg];
+
         // Read function's code
         let func_len = end - start + 1;
         let mut code = vec![0; (func_len / 4) as usize];
-        f.seek(SeekFrom::Start((start - ghidra_base) as u64))?;
+        f.seek(SeekFrom::Start(func_file_pos as u64))?;
         f.read_u32_into::<BigEndian>(&mut code)?;
 
         funcs.push(AsmFunction {
             lib_filename: String::from(lib_filename),
             namespace: String::from(namespace),
-            ghidra_base,
 
             name: String::from(name),
             ghidra_addr: start,
@@ -159,17 +147,3 @@ fn parse_funcs(
 
     Ok(())
 }
-
-//fn parse_memory_map(root: Node) -> Result<MemoryMap> {
-//    let memory_map_elem = root.children()
-//        .find(|c| c.has_tag_name("MEMORY_MAP"))
-//        .ok_or("Could not find MEMORY_MAP element")?;
-//
-//    for section_elem in memory_map_elem.children() {
-//        if !section_elem.has_tag_name("MEMORY_SECTION") {
-//            continue;
-//        }
-//    }
-//
-//    Ok(())
-//}

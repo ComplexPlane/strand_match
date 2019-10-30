@@ -1,4 +1,7 @@
+use failure;
+
 mod parse;
+mod util;
 
 type Result<T> = std::result::Result<T, failure::Error>;
 
@@ -10,7 +13,6 @@ pub struct AsmFunction {
     // Also, it's more ergonomic to associate the metadata with the functions
     pub lib_filename: String,
     pub namespace: String,
-    pub ghidra_base: u32,
 
     pub name: String,
     pub ghidra_addr: u32,
@@ -19,8 +21,10 @@ pub struct AsmFunction {
 }
 
 pub fn run() -> Result<()> {
-//    let sdk_funcs = parse::parse_sdk_libs()?;
+    let sdk_funcs = parse::parse_sdk_libs()?;
     let rel_funcs = parse::parse_rel()?;
+
+//    println!("{:#?}", rel_funcs);
 
     Ok(())
 }
