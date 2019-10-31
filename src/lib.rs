@@ -25,6 +25,8 @@ pub fn run() -> Result<()> {
     let sdk_funcs = parse::parse_sdk_libs()?;
     let rel_funcs = parse::parse_rel()?;
 
+    println!("{}, {}", sdk_funcs.len(), rel_funcs.len());
+
     matching::match_funcs(sdk_funcs, rel_funcs);
 
     Ok(())

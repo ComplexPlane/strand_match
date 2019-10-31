@@ -20,7 +20,11 @@ pub fn parse_sdk_libs() -> Result<Vec<AsmFunction>> {
 
     let lib_dir = Path::new("ghidra-export/sdk");
     for entry in fs::read_dir(lib_dir)? {
-        parse_library_or_rel(&entry?.path(), &mut funcs)?;
+        let path = entry?.path();
+        let ext = path.extension().ok_or(format_err!("File with no extension?"))?;
+        if ext == "xml" {
+            parse_library_or_rel(&path, &mut funcs)?;
+        }
     }
 
     Ok(funcs)
@@ -34,9 +38,8 @@ pub fn parse_rel() -> Result<Vec<AsmFunction>> {
     Ok(funcs)
 }
 
-fn parse_library_or_rel(path: &Path, funcs: &mut Vec<AsmFunction>) -> Result<()> {
-    let xml_path = path.with_extension("xml");
-    let binary_path = path.with_extension("bytes");
+fn parse_library_or_rel(xml_path: &Path, funcs: &mut Vec<AsmFunction>) -> Result<()> {
+    let binary_path = xml_path.with_extension("bytes");
 
     let xml_str = fs::read_to_string(xml_path)?;
     let xml_tree = Document::parse(&xml_str)?;
