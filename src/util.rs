@@ -15,7 +15,8 @@ pub fn parse_u32_hex(s: &str) -> Result<u32> {
     Ok(u32::from_str_radix(s, 16)?)
 }
 
-pub fn export_function(func: &AsmFunction) {
+pub fn debug_export_function(func: &AsmFunction) {
+    println!("Exporting:\n{:#?}", func);
     let mut file = File::create(format!("{}.bin", func.name)).unwrap();
     for instr in &func.code {
         file.write_u32::<BigEndian>(*instr).unwrap();
