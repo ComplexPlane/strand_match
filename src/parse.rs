@@ -9,11 +9,13 @@ use regex::Regex;
 use byteorder::{ReadBytesExt, BigEndian};
 use lazy_static::lazy_static;
 
-mod memmap;
-
-use crate::{Result, AsmFunction};
+use crate::Result;
 use crate::util;
+use crate::function::AsmFunction;
+
 use memmap::MemoryMap;
+
+mod memmap;
 
 pub fn parse_sdk_libs() -> Result<Vec<AsmFunction>> {
     let mut funcs = Vec::new();

@@ -1,9 +1,4 @@
-use std::fs::File;
-
-use byteorder::{WriteBytesExt, BigEndian};
-
 use crate::Result;
-use crate::AsmFunction;
 
 pub fn parse_u32_hex(s: &str) -> Result<u32> {
     let s = if s.len() >= 2 && &s[0..2].to_lowercase() == "0x" {
@@ -13,14 +8,6 @@ pub fn parse_u32_hex(s: &str) -> Result<u32> {
     };
 
     Ok(u32::from_str_radix(s, 16)?)
-}
-
-pub fn debug_export_function(func: &AsmFunction) {
-    println!("Exporting:\n{:#?}", func);
-    let mut file = File::create(format!("{}.bin", func.name)).unwrap();
-    for instr in &func.code {
-        file.write_u32::<BigEndian>(*instr).unwrap();
-    }
 }
 
 #[cfg(test)]

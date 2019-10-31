@@ -1,7 +1,4 @@
-use strsim::generic_levenshtein;
-
-use crate::AsmFunction;
-use crate::util::debug_export_function;
+use crate::function::AsmFunction;
 
 const BL_OPCODE: u32 = 0b01001000_00000000_00000000_00000001;
 const BL_OPCODE_MASK: u32 = 0b11111100_00000000_00000000_00000001;
@@ -61,17 +58,20 @@ fn match_levenshtein(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) {
 
             comparisons += 1;
             if comparisons % 10_000 == 0 {
-                println!("{} comparisons", comparisons);
+                let percent = comparisons as f64 / ((filtered_sdk_funcs.len()) * rel_funcs.len())
+                    as f64 * 100.0;
+                println!("{} comparisons ({:.1}%)", comparisons, percent);
             }
         }
         matches_in_rel.push((closest_rel_func, min_diff));
     }
 
     for (i, mtch) in matches_in_rel.iter().enumerate() {
-        println!("============ SDK FUNC =============");
-        println!("{:#?}", filtered_sdk_funcs[i]);
-        println!("============ MATCHED REL FUNC =============");
-        println!("{:#?}\n\n\n", mtch);
+        println!("============ SCORE: {} ============", mtch.1);
+        println!("------------ SDK FUNC -------------");
+        println!("{}", filtered_sdk_funcs[i]);
+        println!("------------ MATCHED REL FUNC -------------");
+        println!("{}\n\n\n", mtch.0);
     }
 }
 
