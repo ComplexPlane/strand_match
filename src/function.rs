@@ -35,14 +35,20 @@ impl AsmFunction {
 impl Display for AsmFunction {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::result::Result<(), Error> {
         writeln!(f, "AsmFunction:")?;
-        writeln!(f, "    name: {}", self.name)?;
+        writeln!(f, "    name: {}()", self.name)?;
         writeln!(f, "    namespace: {}", self.namespace)?;
+        writeln!(f, "    library name: {}", self.lib_filename)?;
         writeln!(f, "    len: {}", self.len)?;
         writeln!(f, "    ghidra_addr: {:08x}", self.ghidra_addr)?;
         writeln!(f, "    code:")?;
 
-        for inst in &self.code {
-            writeln!(f, "        {}", AsmFunction::hexstring_spaces(*inst))?;
+        for (i, inst) in self.code.iter().enumerate() {
+            write!(f, "        0x{:08x}  ", self.ghidra_addr + i as u32 * 4)?;
+            if *inst == 0 {
+                writeln!(f, "[ RELOCATED ]")?;
+            } else {
+                writeln!(f, "{}", AsmFunction::hexstring_spaces(*inst))?;
+            }
         }
 
         Ok(())

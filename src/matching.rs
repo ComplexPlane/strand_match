@@ -13,8 +13,8 @@ pub fn match_funcs(mut sdk_funcs: Vec<AsmFunction>, mut rel_funcs: Vec<AsmFuncti
 //
 //    debug_export_function(&rel_funcs[target_idx]);
 //
-    equalize_bl(&mut sdk_funcs);
-    equalize_bl(&mut rel_funcs);
+//    equalize_bl(&mut sdk_funcs);
+//    equalize_bl(&mut rel_funcs);
 
     match_levenshtein(&sdk_funcs, &rel_funcs);
 }
@@ -86,3 +86,13 @@ fn equalize_bl(funcs: &mut [AsmFunction]) {
         }
     }
 }
+
+// IF lengths are equal, return how many instructions differ, not counting relocated instructions.
+// If lengths differ, return std::usize::MAX
+//fn compare_simple(a: &AsmFunction, b: &AsmFunction) -> usize {
+//    if a.code.len() == b.code.len() {
+//        a.code.iter()
+//            .zip(b.code.iter())
+//            .filter(|(x, y)| )
+//    }
+//}

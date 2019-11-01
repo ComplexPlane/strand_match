@@ -2,6 +2,7 @@ use std::fs;
 use std::fs::File;
 use std::path::Path;
 use std::io::{BufReader, Seek, SeekFrom};
+use std::collections::HashSet;
 
 use failure::{format_err, bail};
 use roxmltree::{Document, Node};
@@ -14,6 +15,8 @@ use crate::util;
 use crate::function::AsmFunction;
 
 use memmap::MemoryMap;
+use crate::util::parse_u32_hex;
+use std::iter::FromIterator;
 
 mod memmap;
 
@@ -86,21 +89,46 @@ fn parse_namespace<'a>(root: &'a Node) -> Result<&'a str> {
     }
 }
 
+// Returns a list of instruction addresses which have been relocated.
+// NOTE: does not return the addresses of the changed bytes inside the instructions themselves
+fn parse_relocation_table(root: Node) -> Result<Vec<u32>> {
+    let reloc_table = root.children()
+        .find(|c| c.has_tag_name("RELOCATION_TABLE"))
+        .ok_or(format_err!("RELOCATION_TABLE not found"))?;
+
+    let mut reloc_vec = Vec::new();
+
+    for reloc in reloc_table.children() {
+        if !reloc.has_tag_name("RELOCATION") {
+            continue;
+        }
+
+        let addr = reloc.attribute("ADDRESS")
+            .ok_or(format_err!("ADDRESS attribute not found"))?;
+        let addr = parse_u32_hex(addr)?;
+        let addr = addr - (addr % 4); // Get address of instruction itself
+        reloc_vec.push(addr);
+    }
+
+    Ok(reloc_vec)
+}
+
 fn parse_funcs(
     binary_path: &Path,
-    xml_root: Node,
+    root: Node,
 
     lib_filename: &str,
     namespace: &str,
 
     funcs: &mut Vec<AsmFunction>) -> Result<()> {
 
-    let memory_map = MemoryMap::parse(xml_root)?;
+    let memory_map = MemoryMap::parse(root)?;
 
     let f = File::open(binary_path)?;
     let mut f = BufReader::new(f);
+    let relocs: HashSet<_> = parse_relocation_table(root)?.into_iter().collect();
 
-    let func_list_elem = xml_root.children()
+    let func_list_elem = root.children()
         .find(|c| c.has_tag_name("FUNCTIONS"))
         .ok_or(format_err!("Couldn't find FUNCTIONS element"))?;
 
@@ -138,6 +166,13 @@ fn parse_funcs(
         let mut code = vec![0; (func_len / 4) as usize];
         f.seek(SeekFrom::Start(func_file_pos as u64))?;
         f.read_u32_into::<BigEndian>(&mut code)?;
+
+        // Flag instructions which are relocated so they can be not counted in later comparisons
+        for (i, inst) in code.iter_mut().enumerate() {
+            if relocs.contains(&(start + i as u32 * 4)) {
+                *inst = 0;
+            }
+        }
 
         funcs.push(AsmFunction {
             lib_filename: String::from(lib_filename),
