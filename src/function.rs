@@ -2,6 +2,7 @@ use std::fmt::{Display, Formatter, Error};
 use std::fs::File;
 
 use byteorder::{WriteBytesExt, BigEndian};
+use failure::_core::cmp::Ordering;
 
 pub struct AsmFunction {
     // Metadata
@@ -30,6 +31,10 @@ impl AsmFunction {
             file.write_u32::<BigEndian>(*instr).unwrap();
         }
     }
+
+    pub fn full_name(&self) -> String {
+        format!("{}::{}", self.namespace, self.name)
+    }
 }
 
 impl Display for AsmFunction {
@@ -55,3 +60,25 @@ impl Display for AsmFunction {
     }
 }
 
+impl PartialOrd for AsmFunction {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for AsmFunction {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.namespace.cmp(&other.namespace) {
+            Ordering::Equal => self.name.cmp(&other.name),
+            ord => ord,
+        }
+    }
+}
+
+impl PartialEq for AsmFunction {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other) == Ordering::Equal
+    }
+}
+
+impl Eq for AsmFunction {}

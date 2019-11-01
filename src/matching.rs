@@ -1,88 +1,44 @@
+use std::collections::HashMap;
+
 use crate::function::AsmFunction;
 
 const BL_OPCODE: u32 = 0b01001000_00000000_00000000_00000001;
 const BL_OPCODE_MASK: u32 = 0b11111100_00000000_00000000_00000001;
 
 pub fn match_funcs(mut sdk_funcs: Vec<AsmFunction>, mut rel_funcs: Vec<AsmFunction>) {
-//    let target_idx = rel_funcs
-//        .iter()
-//        .enumerate()
-//        .find(|(i, f)| &f.name.to_lowercase() == "fun_80251f38")
-//        .unwrap()
-//        .0;
-//
-//    debug_export_function(&rel_funcs[target_idx]);
-//
-//    equalize_bl(&mut sdk_funcs);
-//    equalize_bl(&mut rel_funcs);
-
     run_matching(&sdk_funcs, &rel_funcs);
 }
 
 /*
-naive O(n^2) approach:
-TODO try just testing on one known SDK function
+New simpler matching function:
+for each sdk function:
+    add sdk function to one list per matching rel function
+        rel_sdk_map.entry(rel_ref).or_insert(Vec::new()).push(sdk_ref)
 
-non-naive-O(n^2) approach (todo):
-let's just try this first to see what happens
-
-using levenshtein for everything for now, including same-length
-for function in sdk funcs:
-    for each rel func of same length:
-        find all funcs that meet normalized levenshtein similarity threshold
-    if similarity greater than threshold (say 0.9), AND it's unique, declare it a match
-        mark with Some(&func) in array
-    if not:
-        todo
+print out rels with single matching sdks, then doubles
 */
 fn run_matching(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) {
-//    let mut rel_matches = vec![None; rel_funcs.len()];
-    let mut matches_in_rel = Vec::new();
-
-    let mut comparisons = 0u64;
-
-//    let filtered_sdk_funcs: Vec<_> = sdk_funcs.iter()
-//        .filter(|f| &f.namespace == "gx")
-//        .collect();
-    let filtered_sdk_funcs= sdk_funcs;
-
-    for (j, sdk_func) in filtered_sdk_funcs.iter().enumerate() {
-        let mut min_diff = std::usize::MAX;
-        let mut closest_rel_func = &rel_funcs[0];
-            for (i, rel_func) in rel_funcs.iter().enumerate() {
-//            let diff = strsim::generic_levenshtein(&rel_func.code, &sdk_func.code);
-            let diff = compare_simple(rel_func, sdk_func);
-            if diff < min_diff {
-                min_diff = diff;
-                closest_rel_func = rel_func;
-            }
-
-            comparisons += 1;
-            if comparisons % 10_000 == 0 {
-                let percent = comparisons as f64 / ((filtered_sdk_funcs.len()) * rel_funcs.len())
-                    as f64 * 100.0;
-                println!("{} comparisons ({:.1}%)", comparisons, percent);
+    let mut rel_sdk_map = HashMap::new();
+    for sdk in sdk_funcs {
+        for (rel_idx, rel) in rel_funcs.iter().enumerate() {
+            if compare_simple(sdk, rel) == 0 {
+                let matches_of_rel = rel_sdk_map.entry(rel_idx).or_insert(Vec::new());
+                matches_of_rel.push(sdk);
             }
         }
-        matches_in_rel.push((closest_rel_func, min_diff));
     }
 
-    for (i, (rel, score)) in matches_in_rel.iter().enumerate() {
-        let sdk = &filtered_sdk_funcs[i];
-        let score_percent = *score as f64 / sdk.code.len() as f64 * 100.0;
-        println!("============ DIFFERENCE: {} ({:.1}%) ============", score, score_percent);
-        println!("------------ SDK FUNC -------------");
-        println!("{}", filtered_sdk_funcs[i]);
-        println!("------------ MATCHED REL FUNC -------------");
-        println!("{}\n\n\n", rel);
-    }
+    let mut rel_sdk_matches: Vec<_> = rel_sdk_map.iter()
+        .filter(|(_, sdk_matches)| sdk_matches.len() == 1)
+        .map(|(rel_i, sdk_matches)| (&sdk_matches[0], &rel_funcs[*rel_i]))
+        .collect();
+    rel_sdk_matches.sort_unstable();
 
-    println!("======================== strand_match Summary ==========================");
-    for (i, (rel, score)) in matches_in_rel.iter().enumerate() {
-        let sdk = &filtered_sdk_funcs[i];
-        let score_percent = *score as f64 / sdk.code.len() as f64 * 100.0;
-        println!("{}::{} -> {} ({}, {:.1}%)", sdk.namespace, sdk.name, rel.name,
-                 score, score_percent);
+    println!("======================== strand_match Summary ==========================\n");
+
+    println!("REL functions matched by a single SDK function:");
+    for (sdk, rel) in rel_sdk_matches {
+        println!("{} -> {}", sdk.full_name(), rel.name);
     }
 }
 
