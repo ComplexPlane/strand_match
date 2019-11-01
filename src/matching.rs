@@ -16,7 +16,7 @@ pub fn match_funcs(mut sdk_funcs: Vec<AsmFunction>, mut rel_funcs: Vec<AsmFuncti
 //    equalize_bl(&mut sdk_funcs);
 //    equalize_bl(&mut rel_funcs);
 
-    match_levenshtein(&sdk_funcs, &rel_funcs);
+    run_matching(&sdk_funcs, &rel_funcs);
 }
 
 /*
@@ -35,7 +35,7 @@ for function in sdk funcs:
     if not:
         todo
 */
-fn match_levenshtein(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) {
+fn run_matching(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) {
 //    let mut rel_matches = vec![None; rel_funcs.len()];
     let mut matches_in_rel = Vec::new();
 
@@ -50,9 +50,10 @@ fn match_levenshtein(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) {
         let mut min_diff = std::usize::MAX;
         let mut closest_rel_func = &rel_funcs[0];
             for (i, rel_func) in rel_funcs.iter().enumerate() {
-            let leven = strsim::generic_levenshtein(&rel_func.code, &sdk_func.code);
-            if leven < min_diff {
-                min_diff = leven;
+//            let diff = strsim::generic_levenshtein(&rel_func.code, &sdk_func.code);
+            let diff = compare_simple(rel_func, sdk_func);
+            if diff < min_diff {
+                min_diff = diff;
                 closest_rel_func = rel_func;
             }
 
@@ -66,12 +67,22 @@ fn match_levenshtein(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) {
         matches_in_rel.push((closest_rel_func, min_diff));
     }
 
-    for (i, mtch) in matches_in_rel.iter().enumerate() {
-        println!("============ SCORE: {} ============", mtch.1);
+    for (i, (rel, score)) in matches_in_rel.iter().enumerate() {
+        let sdk = &filtered_sdk_funcs[i];
+        let score_percent = *score as f64 / sdk.code.len() as f64 * 100.0;
+        println!("============ DIFFERENCE: {} ({:.1}%) ============", score, score_percent);
         println!("------------ SDK FUNC -------------");
         println!("{}", filtered_sdk_funcs[i]);
         println!("------------ MATCHED REL FUNC -------------");
-        println!("{}\n\n\n", mtch.0);
+        println!("{}\n\n\n", rel);
+    }
+
+    println!("======================== strand_match Summary ==========================");
+    for (i, (rel, score)) in matches_in_rel.iter().enumerate() {
+        let sdk = &filtered_sdk_funcs[i];
+        let score_percent = *score as f64 / sdk.code.len() as f64 * 100.0;
+        println!("{}::{} -> {} ({}, {:.1}%)", sdk.namespace, sdk.name, rel.name,
+                 score, score_percent);
     }
 }
 
@@ -89,10 +100,13 @@ fn equalize_bl(funcs: &mut [AsmFunction]) {
 
 // IF lengths are equal, return how many instructions differ, not counting relocated instructions.
 // If lengths differ, return std::usize::MAX
-//fn compare_simple(a: &AsmFunction, b: &AsmFunction) -> usize {
-//    if a.code.len() == b.code.len() {
-//        a.code.iter()
-//            .zip(b.code.iter())
-//            .filter(|(x, y)| )
-//    }
-//}
+fn compare_simple(a: &AsmFunction, b: &AsmFunction) -> usize {
+    if a.code.len() == b.code.len() {
+        a.code.iter()
+            .zip(b.code.iter())
+            .filter(|&(&x, &y)| x != 0 && y != 0 && x != y)
+            .count()
+    } else {
+        std::usize::MAX
+    }
+}
