@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 
+use crate::Result;
 use crate::function::AsmFunction;
 use crate::mapfile;
 
-const BL_OPCODE: u32 = 0b01001000_00000000_00000000_00000001;
-const BL_OPCODE_MASK: u32 = 0b11111100_00000000_00000000_00000001;
-
-pub fn match_funcs(mut sdk_funcs: Vec<AsmFunction>, mut rel_funcs: Vec<AsmFunction>) {
-    run_matching(&sdk_funcs, &rel_funcs);
+pub fn match_funcs(sdk_funcs: Vec<AsmFunction>, rel_funcs: Vec<AsmFunction>) -> Result<()> {
+    run_matching(&sdk_funcs, &rel_funcs)
 }
 
 /*
@@ -18,7 +16,7 @@ for each sdk function:
 
 print out rels with single matching sdks, then doubles
 */
-fn run_matching(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) {
+fn run_matching(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) -> Result<()> {
     let mut rel_sdk_map = HashMap::new();
     for sdk in sdk_funcs {
         for (rel_idx, rel) in rel_funcs.iter().enumerate() {
@@ -79,19 +77,7 @@ fn run_matching(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) {
         }
     }
 
-    mapfile::export_mapfile(&rel_sdk_matches);
-}
-
-// Zero the arguments to all `bl` instructions, as these are often modified during linking or
-// runtime relocation
-fn equalize_bl(funcs: &mut [AsmFunction]) {
-    for fun in funcs {
-        for inst in &mut fun.code {
-            if *inst & BL_OPCODE_MASK == BL_OPCODE {
-                *inst = BL_OPCODE; // Zero all other bits
-            }
-        }
-    }
+    mapfile::export_mapfile(&rel_sdk_matches)
 }
 
 // If lengths are equal, return how many instructions differ, not counting relocated instructions.

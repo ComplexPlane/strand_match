@@ -16,7 +16,6 @@ use crate::function::AsmFunction;
 
 use memmap::MemoryMap;
 use crate::util::parse_u32_hex;
-use std::iter::FromIterator;
 
 mod memmap;
 
