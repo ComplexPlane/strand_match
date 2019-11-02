@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::function::AsmFunction;
+use crate::mapfile;
 
 const BL_OPCODE: u32 = 0b01001000_00000000_00000000_00000001;
 const BL_OPCODE_MASK: u32 = 0b11111100_00000000_00000000_00000001;
@@ -50,14 +51,14 @@ fn run_matching(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) {
 
     let mut rel_sdk_matches: Vec<_> = rel_sdk_map.iter()
         .filter(|(_, sdk_matches)| sdk_matches.len() == 1)
-        .map(|(rel_i, sdk_matches)| (&sdk_matches[0], &rel_funcs[*rel_i]))
+        .map(|(rel_i, sdk_matches)| (sdk_matches[0], &rel_funcs[*rel_i]))
         .collect();
     rel_sdk_matches.sort_unstable();
 
     println!("======================== strand_match Summary ==========================\n");
 
     println!("REL functions matched by a single SDK function:");
-    for (sdk, rel) in rel_sdk_matches {
+    for (sdk, rel) in &rel_sdk_matches {
         println!("{} -> {}", sdk.full_name(), rel.name);
     }
 
@@ -77,6 +78,8 @@ fn run_matching(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) {
             println!("[{}] -> {}", lst_str, rel_funcs[rel_idx].name);
         }
     }
+
+    mapfile::export_mapfile(&rel_sdk_matches);
 }
 
 // Zero the arguments to all `bl` instructions, as these are often modified during linking or

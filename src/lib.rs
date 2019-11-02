@@ -4,6 +4,7 @@ mod parse;
 mod util;
 mod matching;
 mod function;
+mod mapfile;
 
 type Result<T> = std::result::Result<T, failure::Error>;
 
