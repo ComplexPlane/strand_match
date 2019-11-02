@@ -11,7 +11,7 @@ pub fn export_mapfile(pairings: &[(&AsmFunction, &AsmFunction)]) -> Result<()> {
     let mut mapfile = File::create("smb2-symbols.map")?;
 
     for (sdk, rel) in pairings {
-        writeln!(mapfile, "{} 0x{:08x}", sdk.full_name(), rel.ghidra_addr)?;
+        writeln!(mapfile, "{} {} 0x{:08x}", sdk.name, sdk.namespace, rel.ghidra_addr)?;
     }
     Ok(())
 }
