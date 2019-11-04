@@ -19,30 +19,22 @@ use crate::util::parse_u32_hex;
 
 mod memmap;
 
-pub fn parse_sdk_libs() -> Result<Vec<AsmFunction>> {
+pub fn parse_dir(path: &str) -> Result<Vec<AsmFunction>> {
     let mut funcs = Vec::new();
 
-    let lib_dir = Path::new("ghidra-export/sdk");
+    let lib_dir = Path::new(path);
     for entry in fs::read_dir(lib_dir)? {
         let path = entry?.path();
         let ext = path.extension().ok_or(format_err!("File with no extension?"))?;
         if ext == "xml" {
-            parse_library_or_rel(&path, &mut funcs)?;
+            parse_module(&path, &mut funcs)?;
         }
     }
 
     Ok(funcs)
 }
 
-pub fn parse_rel() -> Result<Vec<AsmFunction>> {
-    let mut funcs = Vec::new();
-    let path = Path::new("ghidra-export/smb2/f0eef0a5aa93ff1c4788422f8f82aa8e.xml");
-    parse_library_or_rel(path, &mut funcs)?;
-
-    Ok(funcs)
-}
-
-fn parse_library_or_rel(xml_path: &Path, funcs: &mut Vec<AsmFunction>) -> Result<()> {
+fn parse_module(xml_path: &Path, funcs: &mut Vec<AsmFunction>) -> Result<()> {
     let binary_path = xml_path.with_extension("bytes");
 
     let xml_str = fs::read_to_string(xml_path)?;
@@ -79,7 +71,7 @@ fn parse_namespace<'a>(root: &'a Node) -> Result<&'a str> {
         .ok_or(format_err!("Failed to get FSRL value"))?;
 
     lazy_static!{
-        static ref NAMESPACE_RE: Regex = Regex::new(r"/([\w\.]+)\.((rel)|a)").unwrap();
+        static ref NAMESPACE_RE: Regex = Regex::new(r"/([\w\.]+)\.((rel)|(dol)|a)").unwrap();
     }
 
     match NAMESPACE_RE.captures(fsrl_val) {
