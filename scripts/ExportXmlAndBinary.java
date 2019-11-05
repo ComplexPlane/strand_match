@@ -9,7 +9,7 @@ import ghidra.app.util.exporter.XmlExporter;
 import ghidra.program.model.listing.*;
 import java.io.File;
 
-public class StrandMatchExport extends GhidraScript {
+public class ExportXmlAndBinary extends GhidraScript {
 
 	@Override
 	protected void run() throws Exception {

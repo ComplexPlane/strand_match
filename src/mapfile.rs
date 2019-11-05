@@ -4,14 +4,18 @@ use std::io::Write;
 use crate::function::AsmFunction;
 use crate::Result;
 
-// Writes a symbol map which can be imported into Ghidra with the script
-// Data->ImportSymbolsScript.py
+// Writes a Dolphin-compatible symbol map which can be imported into Ghidra with the script
+//
 
 pub fn export_mapfile(pairings: &[(&AsmFunction, &AsmFunction)]) -> Result<()> {
     let mut mapfile = File::create("smb2-symbols.map")?;
 
     for (sdk, rel) in pairings {
-        writeln!(mapfile, "{} {} 0x{:08x}", sdk.name, sdk.namespace, rel.ghidra_addr)?;
+        writeln!(mapfile, "{:08x} {:08x} {:08x} 0 {}",
+                 rel.ghidra_addr,
+                 sdk.len,
+                 rel.ghidra_addr,
+                 sdk.full_name())?;
     }
     Ok(())
 }
