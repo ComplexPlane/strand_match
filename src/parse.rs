@@ -1,21 +1,21 @@
+use std::collections::HashSet;
 use std::fs;
 use std::fs::File;
-use std::path::Path;
 use std::io::{BufReader, Seek, SeekFrom};
-use std::collections::HashSet;
+use std::path::Path;
 
-use failure::{format_err, bail};
-use roxmltree::{Document, Node};
-use regex::Regex;
-use byteorder::{ReadBytesExt, BigEndian};
+use byteorder::{BigEndian, ReadBytesExt};
+use failure::{bail, format_err};
 use lazy_static::lazy_static;
+use regex::Regex;
+use roxmltree::{Document, Node};
 
-use crate::Result;
-use crate::util;
 use crate::function::AsmFunction;
+use crate::util;
+use crate::Result;
 
-use memmap::MemoryMap;
 use crate::util::parse_u32_hex;
+use memmap::MemoryMap;
 
 mod memmap;
 
@@ -25,7 +25,9 @@ pub fn parse_dir(path: &str) -> Result<Vec<AsmFunction>> {
     let lib_dir = Path::new(path);
     for entry in fs::read_dir(lib_dir)? {
         let path = entry?.path();
-        let ext = path.extension().ok_or(format_err!("File with no extension?"))?;
+        let ext = path
+            .extension()
+            .ok_or(format_err!("File with no extension?"))?;
         if ext == "xml" {
             parse_module(&path, &mut funcs)?;
         }
@@ -41,36 +43,33 @@ fn parse_module(xml_path: &Path, funcs: &mut Vec<AsmFunction>) -> Result<()> {
     let xml_tree = Document::parse(&xml_str)?;
     let root = xml_tree.root_element();
 
-    let lib_name = root.attribute("NAME")
+    let lib_name = root
+        .attribute("NAME")
         .ok_or(format_err!("Failed to get program name attribute"))?;
     let namespace = parse_namespace(&root)?;
 
-    parse_funcs(
-        &binary_path,
-        root,
-        lib_name,
-        namespace,
-        funcs,
-    )
+    parse_funcs(&binary_path, root, lib_name, namespace, funcs)
 }
 
 fn parse_namespace<'a>(root: &'a Node) -> Result<&'a str> {
-    let properties_node = root.children()
+    let properties_node = root
+        .children()
         .find(|c| c.has_tag_name("PROPERTIES"))
         .ok_or(format_err!("Failed to find PROPERTIES node"))?;
 
-    let fsrl_property = properties_node.children()
-        .find(|c| {
-            match c.attribute("NAME") {
-                Some(val) => val == "Program Information.FSRL",
-                None => false,
-            }
-        }).ok_or(format_err!("Failed to find FSRL property"))?;
+    let fsrl_property = properties_node
+        .children()
+        .find(|c| match c.attribute("NAME") {
+            Some(val) => val == "Program Information.FSRL",
+            None => false,
+        })
+        .ok_or(format_err!("Failed to find FSRL property"))?;
 
-    let fsrl_val = fsrl_property.attribute("VALUE")
+    let fsrl_val = fsrl_property
+        .attribute("VALUE")
         .ok_or(format_err!("Failed to get FSRL value"))?;
 
-    lazy_static!{
+    lazy_static! {
         static ref NAMESPACE_RE: Regex = Regex::new(r"/([\w\.]+)\.((rel)|(dol)|a)").unwrap();
     }
 
@@ -83,7 +82,8 @@ fn parse_namespace<'a>(root: &'a Node) -> Result<&'a str> {
 // Returns a list of instruction addresses which have been relocated.
 // NOTE: does not return the addresses of the changed bytes inside the instructions themselves
 fn parse_relocation_table(root: Node) -> Result<Vec<u32>> {
-    let reloc_table = root.children()
+    let reloc_table = root
+        .children()
         .find(|c| c.has_tag_name("RELOCATION_TABLE"))
         .ok_or(format_err!("RELOCATION_TABLE not found"))?;
 
@@ -94,7 +94,8 @@ fn parse_relocation_table(root: Node) -> Result<Vec<u32>> {
             continue;
         }
 
-        let addr = reloc.attribute("ADDRESS")
+        let addr = reloc
+            .attribute("ADDRESS")
             .ok_or(format_err!("ADDRESS attribute not found"))?;
         let addr = parse_u32_hex(addr)?;
         let addr = addr - (addr % 4); // Get address of instruction itself
@@ -111,15 +112,16 @@ fn parse_funcs(
     lib_filename: &str,
     namespace: &str,
 
-    funcs: &mut Vec<AsmFunction>) -> Result<()> {
-
+    funcs: &mut Vec<AsmFunction>,
+) -> Result<()> {
     let memory_map = MemoryMap::parse(root)?;
 
     let f = File::open(binary_path)?;
     let mut f = BufReader::new(f);
     let relocs: HashSet<_> = parse_relocation_table(root)?.into_iter().collect();
 
-    let func_list_elem = root.children()
+    let func_list_elem = root
+        .children()
         .find(|c| c.has_tag_name("FUNCTIONS"))
         .ok_or(format_err!("Couldn't find FUNCTIONS element"))?;
 
@@ -129,15 +131,19 @@ fn parse_funcs(
             continue;
         }
 
-        let name = func_elem.attribute("NAME")
+        let name = func_elem
+            .attribute("NAME")
             .ok_or(format_err!("Failed to get function name"))?;
 
-        let addr_range = func_elem.children()
+        let addr_range = func_elem
+            .children()
             .find(|c| c.has_tag_name("ADDRESS_RANGE"))
             .ok_or(format_err!("Failed to get function address range"))?;
-        let start = addr_range.attribute("START")
+        let start = addr_range
+            .attribute("START")
             .ok_or(format_err!("Failed to get function address range start"))?;
-        let end = addr_range.attribute("END")
+        let end = addr_range
+            .attribute("END")
             .ok_or(format_err!("Failed to get function address range start"))?;
 
         let start = util::parse_u32_hex(start)?;

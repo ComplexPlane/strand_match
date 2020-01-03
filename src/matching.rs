@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use crate::Result;
 use crate::function::AsmFunction;
 use crate::mapfile;
+use crate::Result;
 
 pub fn match_funcs(sdk_funcs: Vec<AsmFunction>, rel_funcs: Vec<AsmFunction>) -> Result<()> {
     run_matching(&sdk_funcs, &rel_funcs)
@@ -20,7 +20,6 @@ fn run_matching(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) -> Result<
     let mut rel_sdk_map = HashMap::new();
     for sdk in sdk_funcs {
         for (rel_idx, rel) in rel_funcs.iter().enumerate() {
-
             if compare_simple(sdk, rel) != 0 {
                 continue;
             }
@@ -36,7 +35,6 @@ fn run_matching(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) -> Result<
                     if new_exact_matches > curr_exact_matches {
                         matches_of_rel.clear();
                         matches_of_rel.push(sdk);
-
                     } else if new_exact_matches == curr_exact_matches {
                         matches_of_rel.push(sdk);
                     }
@@ -47,7 +45,8 @@ fn run_matching(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) -> Result<
         }
     }
 
-    let mut rel_sdk_matches: Vec<_> = rel_sdk_map.iter()
+    let mut rel_sdk_matches: Vec<_> = rel_sdk_map
+        .iter()
         .filter(|(_, sdk_matches)| sdk_matches.len() == 1)
         .map(|(rel_i, sdk_matches)| (sdk_matches[0], &rel_funcs[*rel_i]))
         .collect();
@@ -65,10 +64,9 @@ fn run_matching(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) -> Result<
         if sdk_list.len() < 2 || sdk_list[0].len <= 5 {
             continue;
         }
-        let decent_sdk_matches: Vec<_> = sdk_list.iter()
-            .filter(|sdk| {
-                exact_matching_insns(&rel_funcs[rel_idx], sdk) > 3
-            })
+        let decent_sdk_matches: Vec<_> = sdk_list
+            .iter()
+            .filter(|sdk| exact_matching_insns(&rel_funcs[rel_idx], sdk) > 3)
             .map(|sdk| sdk.full_name())
             .collect();
         if decent_sdk_matches.len() > 0 {
@@ -84,7 +82,8 @@ fn run_matching(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) -> Result<
 // If lengths differ, return std::usize::MAX
 fn compare_simple(a: &AsmFunction, b: &AsmFunction) -> usize {
     if a.code.len() == b.code.len() {
-        a.code.iter()
+        a.code
+            .iter()
             .zip(b.code.iter())
             .filter(|&(&x, &y)| x != 0 && y != 0 && x != y)
             .count()
@@ -96,7 +95,8 @@ fn compare_simple(a: &AsmFunction, b: &AsmFunction) -> usize {
 // How many instructions match between the functions, where relocated instructions don't count?
 fn exact_matching_insns(a: &AsmFunction, b: &AsmFunction) -> usize {
     if a.code.len() == b.code.len() {
-        a.code.iter()
+        a.code
+            .iter()
             .zip(b.code.iter())
             .filter(|&(&x, &y)| x == y && x != 0 && y != 0)
             .count()

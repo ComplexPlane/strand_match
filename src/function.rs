@@ -1,7 +1,7 @@
-use std::fmt::{Display, Formatter, Error};
+use std::fmt::{Display, Error, Formatter};
 use std::fs::File;
 
-use byteorder::{WriteBytesExt, BigEndian};
+use byteorder::{BigEndian, WriteBytesExt};
 use failure::_core::cmp::Ordering;
 
 pub struct AsmFunction {
@@ -21,7 +21,13 @@ pub struct AsmFunction {
 impl AsmFunction {
     fn hexstring_spaces(inst: u32) -> String {
         let nospaces = format!("{:08x}", inst);
-        format!("{} {} {} {}", &nospaces[0..2], &nospaces[2..4], &nospaces[4..6], &nospaces[6..8])
+        format!(
+            "{} {} {} {}",
+            &nospaces[0..2],
+            &nospaces[2..4],
+            &nospaces[4..6],
+            &nospaces[6..8]
+        )
     }
 
     pub fn debug_export(&self) {
