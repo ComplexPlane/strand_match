@@ -2,11 +2,10 @@ use std::fs::File;
 use std::io::Write;
 
 use crate::function::AsmFunction;
-use crate::Result;
 
 // Writes a Dolphin-compatible symbol map which can be imported into Ghidra with the script
 
-pub fn export_mapfile(pairings: &[(&AsmFunction, &AsmFunction)]) -> Result<()> {
+pub fn export_mapfile(pairings: &[(&AsmFunction, &AsmFunction)]) -> Result<(), anyhow::Error> {
     let mut mapfile = File::create("bb-symbols.map")?;
 
     writeln!(mapfile, ".text section layout")?;

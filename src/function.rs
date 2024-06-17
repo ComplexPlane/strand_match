@@ -1,8 +1,8 @@
+use core::cmp::Ordering;
 use std::fmt::{Display, Error, Formatter};
 use std::fs::File;
 
 use byteorder::{BigEndian, WriteBytesExt};
-use failure::_core::cmp::Ordering;
 
 pub struct AsmFunction {
     // Metadata
@@ -30,6 +30,7 @@ impl AsmFunction {
         )
     }
 
+    #[allow(dead_code)]
     pub fn debug_export(&self) {
         println!("Exporting:\n{}", self);
         let mut file = File::create(format!("{}.bin", self.name)).unwrap();

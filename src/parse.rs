@@ -4,39 +4,38 @@ use std::fs::File;
 use std::io::{BufReader, Seek, SeekFrom};
 use std::path::Path;
 
+use anyhow::anyhow;
 use byteorder::{BigEndian, ReadBytesExt};
-use failure::{bail, format_err};
 use lazy_static::lazy_static;
 use regex::Regex;
 use roxmltree::{Document, Node};
 
 use crate::function::AsmFunction;
 use crate::util;
-use crate::Result;
 
 use crate::util::parse_u32_hex;
 use memmap::MemoryMap;
 
 mod memmap;
 
-pub fn parse_dir(path: &str) -> Result<Vec<AsmFunction>> {
+pub fn parse_dir(dir_path: &str) -> Result<Vec<AsmFunction>, anyhow::Error> {
     let mut funcs = Vec::new();
 
-    let lib_dir = Path::new(path);
+    let lib_dir = Path::new(dir_path);
     for entry in fs::read_dir(lib_dir)? {
-        let path = entry?.path();
-        let ext = path
+        let file_path = entry?.path();
+        let ext = file_path
             .extension()
-            .ok_or(format_err!("File with no extension?"))?;
+            .ok_or(anyhow!("File with no extension?"))?;
         if ext == "xml" {
-            parse_module(&path, &mut funcs)?;
+            let mut module_funcs = parse_module(&file_path)?;
+            funcs.append(&mut module_funcs);
         }
     }
-
     Ok(funcs)
 }
 
-fn parse_module(xml_path: &Path, funcs: &mut Vec<AsmFunction>) -> Result<()> {
+fn parse_module(xml_path: &Path) -> Result<Vec<AsmFunction>, anyhow::Error> {
     let binary_path = xml_path.with_extension("bytes");
 
     let xml_str = fs::read_to_string(xml_path)?;
@@ -45,17 +44,17 @@ fn parse_module(xml_path: &Path, funcs: &mut Vec<AsmFunction>) -> Result<()> {
 
     let lib_name = root
         .attribute("NAME")
-        .ok_or(format_err!("Failed to get program name attribute"))?;
+        .ok_or(anyhow!("Failed to get program name attribute"))?;
     let namespace = parse_namespace(&root)?;
 
-    parse_funcs(&binary_path, root, lib_name, namespace, funcs)
+    parse_funcs(&binary_path, root, lib_name, namespace)
 }
 
-fn parse_namespace<'a>(root: &'a Node) -> Result<&'a str> {
+fn parse_namespace<'a>(root: &'a Node) -> Result<&'a str, anyhow::Error> {
     let properties_node = root
         .children()
         .find(|c| c.has_tag_name("PROPERTIES"))
-        .ok_or(format_err!("Failed to find PROPERTIES node"))?;
+        .ok_or(anyhow!("Failed to find PROPERTIES node"))?;
 
     let fsrl_property = properties_node
         .children()
@@ -63,11 +62,11 @@ fn parse_namespace<'a>(root: &'a Node) -> Result<&'a str> {
             Some(val) => val == "Program Information.FSRL",
             None => false,
         })
-        .ok_or(format_err!("Failed to find FSRL property"))?;
+        .ok_or(anyhow!("Failed to find FSRL property"))?;
 
     let fsrl_val = fsrl_property
         .attribute("VALUE")
-        .ok_or(format_err!("Failed to get FSRL value"))?;
+        .ok_or(anyhow!("Failed to get FSRL value"))?;
 
     lazy_static! {
         static ref NAMESPACE_RE: Regex = Regex::new(r"/([\w\.]+)\.((rel)|(dol)|a)").unwrap();
@@ -75,17 +74,17 @@ fn parse_namespace<'a>(root: &'a Node) -> Result<&'a str> {
 
     match NAMESPACE_RE.captures(fsrl_val) {
         Some(caps) => Ok(caps.get(1).unwrap().as_str()),
-        None => bail!("Failed to parse namespace"),
+        None => Err(anyhow!("Failed to parse namespace")),
     }
 }
 
 // Returns a list of instruction addresses which have been relocated.
 // NOTE: does not return the addresses of the changed bytes inside the instructions themselves
-fn parse_relocation_table(root: Node) -> Result<Vec<u32>> {
+fn parse_relocation_table(root: Node) -> Result<Vec<u32>, anyhow::Error> {
     let reloc_table = root
         .children()
         .find(|c| c.has_tag_name("RELOCATION_TABLE"))
-        .ok_or(format_err!("RELOCATION_TABLE not found"))?;
+        .ok_or(anyhow!("RELOCATION_TABLE not found"))?;
 
     let mut reloc_vec = Vec::new();
 
@@ -96,7 +95,7 @@ fn parse_relocation_table(root: Node) -> Result<Vec<u32>> {
 
         let addr = reloc
             .attribute("ADDRESS")
-            .ok_or(format_err!("ADDRESS attribute not found"))?;
+            .ok_or(anyhow!("ADDRESS attribute not found"))?;
         let addr = parse_u32_hex(addr)?;
         let addr = addr - (addr % 4); // Get address of instruction itself
         reloc_vec.push(addr);
@@ -111,9 +110,9 @@ fn parse_funcs(
 
     lib_filename: &str,
     namespace: &str,
+) -> Result<Vec<AsmFunction>, anyhow::Error> {
+    let mut funcs = Vec::new();
 
-    funcs: &mut Vec<AsmFunction>,
-) -> Result<()> {
     let memory_map = MemoryMap::parse(root)?;
 
     let f = File::open(binary_path)?;
@@ -123,7 +122,7 @@ fn parse_funcs(
     let func_list_elem = root
         .children()
         .find(|c| c.has_tag_name("FUNCTIONS"))
-        .ok_or(format_err!("Couldn't find FUNCTIONS element"))?;
+        .ok_or(anyhow!("Couldn't find FUNCTIONS element"))?;
 
     for func_elem in func_list_elem.children() {
         if !func_elem.has_tag_name("FUNCTION") {
@@ -133,21 +132,23 @@ fn parse_funcs(
 
         let name = func_elem
             .attribute("NAME")
-            .ok_or(format_err!("Failed to get function name"))?;
+            .ok_or(anyhow!("Failed to get function name"))?;
 
         let addr_range = func_elem
             .children()
             .find(|c| c.has_tag_name("ADDRESS_RANGE"))
-            .ok_or(format_err!("Failed to get function address range"))?;
+            .ok_or(anyhow!("Failed to get function address range"))?;
         let start = addr_range
             .attribute("START")
-            .ok_or(format_err!("Failed to get function address range start"))?;
+            .ok_or(anyhow!("Failed to get function address range start"))?;
         let end = addr_range
             .attribute("END")
-            .ok_or(format_err!("Failed to get function address range start"))?;
+            .ok_or(anyhow!("Failed to get function address range start"))?;
 
         let start = util::parse_u32_hex(start)?;
-        let end = util::parse_u32_hex(end)?; // Location of last byte, inclusive
+
+        // Location of last byte, inclusive
+        let end = util::parse_u32_hex(end)?;
 
         if start == end {
             // Thunk function, ignore
@@ -182,5 +183,5 @@ fn parse_funcs(
         });
     }
 
-    Ok(())
+    Ok(funcs)
 }

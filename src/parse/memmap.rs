@@ -1,7 +1,6 @@
 use crate::util;
-use crate::Result;
 
-use failure::{bail, format_err};
+use anyhow::anyhow;
 use roxmltree::Node;
 
 // Maybe would work better with Vec<(u32, u32)> or something?
@@ -12,11 +11,11 @@ pub struct MemoryMap {
 }
 
 impl MemoryMap {
-    pub fn parse(root: Node) -> Result<MemoryMap> {
+    pub fn parse(root: Node) -> Result<MemoryMap, anyhow::Error> {
         let memory_map_elem = root
             .children()
             .find(|c| c.has_tag_name("MEMORY_MAP"))
-            .ok_or(format_err!("Could not find MEMORY_MAP element"))?;
+            .ok_or(anyhow!("Could not find MEMORY_MAP element"))?;
 
         let mut memmap = MemoryMap {
             ghidra_addrs: Vec::new(),
@@ -31,7 +30,7 @@ impl MemoryMap {
             // Only parse executable sections
             let executable = section_elem
                 .attribute("PERMISSIONS")
-                .ok_or(format_err!("Failed to parse section permissions"))?
+                .ok_or(anyhow!("Failed to parse section permissions"))?
                 .contains('x');
             if !executable {
                 continue;
@@ -40,7 +39,7 @@ impl MemoryMap {
             // Get start address of section in ghidra
             let ghidra_addr = section_elem
                 .attribute("START_ADDR")
-                .ok_or(format_err!("Failed to parse section start address"))?;
+                .ok_or(anyhow!("Failed to parse section start address"))?;
             let ghidra_addr = util::parse_u32_hex(ghidra_addr)?;
 
             // Get section start offset from start of file
@@ -53,7 +52,7 @@ impl MemoryMap {
             };
             let file_offset = mem_contents_elem
                 .attribute("FILE_OFFSET")
-                .ok_or(format_err!("Could not parse FILE_OFFSET"))?;
+                .ok_or(anyhow!("Could not parse FILE_OFFSET"))?;
             let file_offset = util::parse_u32_hex(file_offset)?;
 
             memmap.ghidra_addrs.push(ghidra_addr);
@@ -63,12 +62,12 @@ impl MemoryMap {
         Ok(memmap)
     }
 
-    pub fn find_segment_idx(&self, ghidra_addr: u32) -> Result<usize> {
+    pub fn find_segment_idx(&self, ghidra_addr: u32) -> Result<usize, anyhow::Error> {
         match self.ghidra_addrs.binary_search(&ghidra_addr) {
             Ok(i) => Ok(i),
             Err(i) => {
                 if i == 0 {
-                    bail!("Ghidra addr not in any memory segment")
+                    Err(anyhow!("Ghidra addr not in any memory segment"))
                 } else {
                     Ok(i - 1)
                 }

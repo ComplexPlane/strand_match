@@ -2,9 +2,11 @@ use std::collections::HashMap;
 
 use crate::function::AsmFunction;
 use crate::mapfile;
-use crate::Result;
 
-pub fn match_funcs(sdk_funcs: Vec<AsmFunction>, rel_funcs: Vec<AsmFunction>) -> Result<()> {
+pub fn match_funcs(
+    sdk_funcs: Vec<AsmFunction>,
+    rel_funcs: Vec<AsmFunction>,
+) -> Result<(), anyhow::Error> {
     run_matching(&sdk_funcs, &rel_funcs)
 }
 
@@ -16,7 +18,7 @@ for each sdk function:
 
 print out rels with single matching sdks, then doubles
 */
-fn run_matching(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) -> Result<()> {
+fn run_matching(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) -> Result<(), anyhow::Error> {
     let mut rel_sdk_map = HashMap::new();
     for sdk in sdk_funcs {
         for (rel_idx, rel) in rel_funcs.iter().enumerate() {
@@ -85,7 +87,7 @@ fn compare_simple(a: &AsmFunction, b: &AsmFunction) -> usize {
         a.code
             .iter()
             .zip(b.code.iter())
-            .filter(|&(&x, &y)| x != 0 && y != 0 && x != y)
+            .filter(|pair| *pair.0 != 0 && *pair.1 != 0 && pair.0 != pair.1)
             .count()
     } else {
         std::usize::MAX
@@ -98,7 +100,7 @@ fn exact_matching_insns(a: &AsmFunction, b: &AsmFunction) -> usize {
         a.code
             .iter()
             .zip(b.code.iter())
-            .filter(|&(&x, &y)| x == y && x != 0 && y != 0)
+            .filter(|pair| pair.0 == pair.1 && *pair.0 != 0 && *pair.1 != 0)
             .count()
     } else {
         0
