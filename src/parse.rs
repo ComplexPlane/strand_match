@@ -6,7 +6,7 @@ use std::path::Path;
 
 use anyhow::anyhow;
 use byteorder::{BigEndian, ReadBytesExt};
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use regex::Regex;
 use roxmltree::{Document, Node};
 
@@ -68,9 +68,8 @@ fn parse_namespace<'a>(root: &'a Node) -> Result<&'a str, anyhow::Error> {
         .attribute("VALUE")
         .ok_or(anyhow!("Failed to get FSRL value"))?;
 
-    lazy_static! {
-        static ref NAMESPACE_RE: Regex = Regex::new(r"/([\w\.]+)\.((rel)|(dol)|a)").unwrap();
-    }
+    static NAMESPACE_RE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"/([\w\.]+)\.((rel)|(dol)|a)").unwrap());
 
     match NAMESPACE_RE.captures(fsrl_val) {
         Some(caps) => Ok(caps.get(1).unwrap().as_str()),
