@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use crate::function::AsmFunction;
@@ -27,21 +28,26 @@ fn run_matching(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) -> Result<
             }
 
             let matches_of_rel = rel_sdk_map.entry(rel_idx).or_insert(Vec::new());
-            match matches_of_rel.get(0) {
+            match matches_of_rel.first() {
                 None => matches_of_rel.push(sdk),
 
                 Some(curr_sdk_match) => {
                     let curr_exact_matches = exact_matching_insns(curr_sdk_match, rel);
                     let new_exact_matches = exact_matching_insns(sdk, rel);
 
-                    if new_exact_matches > curr_exact_matches {
-                        matches_of_rel.clear();
-                        matches_of_rel.push(sdk);
-                    } else if new_exact_matches == curr_exact_matches {
-                        matches_of_rel.push(sdk);
+                    match new_exact_matches.cmp(&curr_exact_matches) {
+                        Ordering::Greater => {
+                            matches_of_rel.clear();
+                            matches_of_rel.push(sdk);
+                        }
+                        Ordering::Equal => {
+                            matches_of_rel.push(sdk);
+                        }
+                        Ordering::Less => {
+                            // Don't count this sdk function if there's less exact matches than what's
+                            // already matched with the rel
+                        }
                     }
-                    // Don't count this sdk function if there's less exact matches than what's
-                    // already matched with the rel
                 }
             }
         }
@@ -71,7 +77,7 @@ fn run_matching(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) -> Result<
             .filter(|sdk| exact_matching_insns(&rel_funcs[rel_idx], sdk) > 3)
             .map(|sdk| sdk.full_name())
             .collect();
-        if decent_sdk_matches.len() > 0 {
+        if !decent_sdk_matches.is_empty() {
             let lst_str = decent_sdk_matches.join(", ");
             println!("[{}] -> {}", lst_str, rel_funcs[rel_idx].name);
         }
