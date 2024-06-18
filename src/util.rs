@@ -1,4 +1,4 @@
-pub fn parse_u32_hex(s: &str) -> Result<u32, anyhow::Error> {
+pub fn parse_u32_hex(s: &str) -> anyhow::Result<u32> {
     let s = if s.len() >= 2 && &s[0..2].to_lowercase() == "0x" {
         &s[2..]
     } else {

@@ -4,7 +4,7 @@ mod matching;
 mod parse;
 mod util;
 
-pub fn run() -> Result<(), anyhow::Error> {
+pub fn run() -> anyhow::Result<()> {
     let sdk_funcs = parse::parse_dir("ghidra-export/wii-sdk-2006")?;
     let rel_funcs = parse::parse_dir("ghidra-export/bb")?;
 

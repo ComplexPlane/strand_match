@@ -11,7 +11,7 @@ pub struct MemoryMap {
 }
 
 impl MemoryMap {
-    pub fn parse(root: Node) -> Result<MemoryMap, anyhow::Error> {
+    pub fn parse(root: Node) -> anyhow::Result<MemoryMap> {
         let memory_map_elem = root
             .children()
             .find(|c| c.has_tag_name("MEMORY_MAP"))
@@ -62,7 +62,7 @@ impl MemoryMap {
         Ok(memmap)
     }
 
-    pub fn find_segment_idx(&self, ghidra_addr: u32) -> Result<usize, anyhow::Error> {
+    pub fn find_segment_idx(&self, ghidra_addr: u32) -> anyhow::Result<usize> {
         match self.ghidra_addrs.binary_search(&ghidra_addr) {
             Ok(i) => Ok(i),
             Err(i) => {

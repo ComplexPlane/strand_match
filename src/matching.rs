@@ -4,10 +4,7 @@ use std::collections::HashMap;
 use crate::function::AsmFunction;
 use crate::mapfile;
 
-pub fn match_funcs(
-    sdk_funcs: Vec<AsmFunction>,
-    rel_funcs: Vec<AsmFunction>,
-) -> Result<(), anyhow::Error> {
+pub fn match_funcs(sdk_funcs: Vec<AsmFunction>, rel_funcs: Vec<AsmFunction>) -> anyhow::Result<()> {
     run_matching(&sdk_funcs, &rel_funcs)
 }
 
@@ -19,7 +16,7 @@ for each sdk function:
 
 print out rels with single matching sdks, then doubles
 */
-fn run_matching(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) -> Result<(), anyhow::Error> {
+fn run_matching(sdk_funcs: &[AsmFunction], rel_funcs: &[AsmFunction]) -> anyhow::Result<()> {
     let mut rel_sdk_map = HashMap::new();
     for sdk in sdk_funcs {
         for (rel_idx, rel) in rel_funcs.iter().enumerate() {

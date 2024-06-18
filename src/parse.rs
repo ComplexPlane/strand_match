@@ -3,10 +3,10 @@ use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Seek, SeekFrom};
 use std::path::Path;
+use std::sync::OnceLock;
 
 use anyhow::anyhow;
 use byteorder::{BigEndian, ReadBytesExt};
-use once_cell::sync::Lazy;
 use regex::Regex;
 use roxmltree::{Document, Node};
 
@@ -18,7 +18,7 @@ use memmap::MemoryMap;
 
 mod memmap;
 
-pub fn parse_dir(dir_path: &str) -> Result<Vec<AsmFunction>, anyhow::Error> {
+pub fn parse_dir(dir_path: &str) -> anyhow::Result<Vec<AsmFunction>> {
     let mut funcs = Vec::new();
 
     let lib_dir = Path::new(dir_path);
@@ -35,7 +35,7 @@ pub fn parse_dir(dir_path: &str) -> Result<Vec<AsmFunction>, anyhow::Error> {
     Ok(funcs)
 }
 
-fn parse_module(xml_path: &Path) -> Result<Vec<AsmFunction>, anyhow::Error> {
+fn parse_module(xml_path: &Path) -> anyhow::Result<Vec<AsmFunction>> {
     let binary_path = xml_path.with_extension("bytes");
 
     let xml_str = fs::read_to_string(xml_path)?;
@@ -50,7 +50,7 @@ fn parse_module(xml_path: &Path) -> Result<Vec<AsmFunction>, anyhow::Error> {
     parse_funcs(&binary_path, root, lib_name, namespace)
 }
 
-fn parse_namespace<'a>(root: &'a Node) -> Result<&'a str, anyhow::Error> {
+fn parse_namespace<'a>(root: &'a Node) -> anyhow::Result<&'a str> {
     let properties_node = root
         .children()
         .find(|c| c.has_tag_name("PROPERTIES"))
@@ -68,10 +68,9 @@ fn parse_namespace<'a>(root: &'a Node) -> Result<&'a str, anyhow::Error> {
         .attribute("VALUE")
         .ok_or(anyhow!("Failed to get FSRL value"))?;
 
-    static NAMESPACE_RE: Lazy<Regex> =
-        Lazy::new(|| Regex::new(r"/([\w\.]+)\.((rel)|(dol)|a)").unwrap());
-
-    match NAMESPACE_RE.captures(fsrl_val) {
+    static NAMESPACE_REGEX: OnceLock<Regex> = OnceLock::new();
+    let re = NAMESPACE_REGEX.get_or_init(|| Regex::new(r"/([\w\.]+)\.((rel)|(dol)|a)").unwrap());
+    match re.captures(fsrl_val) {
         Some(caps) => Ok(caps.get(1).unwrap().as_str()),
         None => Err(anyhow!("Failed to parse namespace")),
     }
@@ -79,7 +78,7 @@ fn parse_namespace<'a>(root: &'a Node) -> Result<&'a str, anyhow::Error> {
 
 // Returns a list of instruction addresses which have been relocated.
 // NOTE: does not return the addresses of the changed bytes inside the instructions themselves
-fn parse_relocation_table(root: Node) -> Result<Vec<u32>, anyhow::Error> {
+fn parse_relocation_table(root: Node) -> anyhow::Result<Vec<u32>> {
     let reloc_table = root
         .children()
         .find(|c| c.has_tag_name("RELOCATION_TABLE"))
@@ -109,7 +108,7 @@ fn parse_funcs(
 
     lib_filename: &str,
     namespace: &str,
-) -> Result<Vec<AsmFunction>, anyhow::Error> {
+) -> anyhow::Result<Vec<AsmFunction>> {
     let mut funcs = Vec::new();
 
     let memory_map = MemoryMap::parse(root)?;

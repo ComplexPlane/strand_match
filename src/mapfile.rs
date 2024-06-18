@@ -5,7 +5,7 @@ use crate::function::AsmFunction;
 
 // Writes a Dolphin-compatible symbol map which can be imported into Ghidra with the script
 
-pub fn export_mapfile(pairings: &[(&AsmFunction, &AsmFunction)]) -> Result<(), anyhow::Error> {
+pub fn export_mapfile(pairings: &[(&AsmFunction, &AsmFunction)]) -> anyhow::Result<()> {
     let mut mapfile = File::create("bb-symbols.map")?;
 
     writeln!(mapfile, ".text section layout")?;
