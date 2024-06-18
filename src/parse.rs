@@ -69,8 +69,9 @@ fn parse_namespace<'a>(root: &'a Node) -> anyhow::Result<&'a str> {
         .ok_or(anyhow!("Failed to get FSRL value"))?;
 
     static NAMESPACE_REGEX: OnceLock<Regex> = OnceLock::new();
-    let re = NAMESPACE_REGEX.get_or_init(|| Regex::new(r"/([\w\.]+)\.((rel)|(dol)|a)").unwrap());
-    match re.captures(fsrl_val) {
+    let namespace_regex =
+        NAMESPACE_REGEX.get_or_init(|| Regex::new(r"/([\w\.]+)\.((rel)|(dol)|a)").unwrap());
+    match namespace_regex.captures(fsrl_val) {
         Some(caps) => Ok(caps.get(1).unwrap().as_str()),
         None => Err(anyhow!("Failed to parse namespace")),
     }
