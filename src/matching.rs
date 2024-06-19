@@ -93,7 +93,7 @@ fn compare_simple(a: &AsmFunction, b: &AsmFunction) -> usize {
             .filter(|pair| *pair.0 != 0 && *pair.1 != 0 && pair.0 != pair.1)
             .count()
     } else {
-        std::usize::MAX
+        usize::MAX
     }
 }
 

@@ -1,5 +1,5 @@
 use core::cmp::Ordering;
-use std::fmt::{Display, Error, Formatter};
+use std::fmt::{Display, Formatter};
 use std::fs::File;
 
 use byteorder::{BigEndian, WriteBytesExt};
@@ -45,7 +45,7 @@ impl AsmFunction {
 }
 
 impl Display for AsmFunction {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::result::Result<(), Error> {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         writeln!(f, "AsmFunction:")?;
         writeln!(f, "    name: {}()", self.name)?;
         writeln!(f, "    namespace: {}", self.namespace)?;
