@@ -142,7 +142,7 @@ fn parse_funcs(
             .ok_or(anyhow!("Failed to get function address range start"))?;
         let end = addr_range
             .attribute("END")
-            .ok_or(anyhow!("Failed to get function address range start"))?;
+            .ok_or(anyhow!("Failed to get function address range end"))?;
 
         let start = util::parse_u32_hex(start)?;
 
