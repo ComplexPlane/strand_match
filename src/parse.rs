@@ -3,7 +3,7 @@ use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Seek, SeekFrom};
 use std::path::Path;
-use std::sync::OnceLock;
+use std::sync::LazyLock;
 
 use anyhow::anyhow;
 use byteorder::{BigEndian, ReadBytesExt};
@@ -68,10 +68,9 @@ fn parse_namespace<'a>(root: &'a Node) -> anyhow::Result<&'a str> {
         .attribute("VALUE")
         .ok_or(anyhow!("Failed to get FSRL value"))?;
 
-    static NAMESPACE_REGEX: OnceLock<Regex> = OnceLock::new();
-    let namespace_regex =
-        NAMESPACE_REGEX.get_or_init(|| Regex::new(r"/([\w\.]+)\.((rel)|(dol)|a)").unwrap());
-    match namespace_regex.captures(fsrl_val) {
+    static NAMESPACE_REGEX: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"/([\w\.]+)\.((rel)|(dol)|a)").unwrap());
+    match NAMESPACE_REGEX.captures(fsrl_val) {
         Some(caps) => Ok(caps.get(1).unwrap().as_str()),
         None => Err(anyhow!("Failed to parse namespace")),
     }
